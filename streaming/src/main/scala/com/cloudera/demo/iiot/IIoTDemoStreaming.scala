@@ -4,6 +4,8 @@ import java.util.HashMap
 
 import scala.collection.JavaConverters._
 
+import com.trueaccord.scalapb.spark._
+
 import kafka.serializer._
 import org.apache.log4j.{Level, Logger}
 import org.apache.kudu.client._
@@ -18,8 +20,6 @@ import org.apache.spark.sql.types._
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka._
 import org.apache.spark.streaming.{StreamingContext, Seconds}
-
-import org.eclipse.kapua.service.device.call.message.kura.proto.KuraPayloadProto
 
 object IIoTDemoStreaming {
 
@@ -61,7 +61,7 @@ object IIoTDemoStreaming {
     // Parse raw messages values into protobuf objects
     val kurapayloadDStream = kafkaDStream.map(message => {
       val key = message._1
-      val value:KuraPayloadProto = KuraPayloadProto.parseFrom(message._2);
+      val value = org.eclipse.kapua.service.device.call.message.kura.proto.kurapayload.KuraPayload.parseFrom(message._2);
 
       (key, value)
     })
