@@ -21,7 +21,11 @@ import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka._
 import org.apache.spark.streaming.{StreamingContext, Seconds}
 
+import org.eclipse.kapua.service.device.call.message.kura.proto.kurapayload.KuraPayload
+
 object IIoTDemoStreaming {
+
+  case class Telemetry(motor_id:String, millis:Option[Long], metric:String, value:Option[Float])
 
   def main(args:Array[String]):Unit = {
 
@@ -48,6 +52,8 @@ object IIoTDemoStreaming {
     val sqc = new SQLContext(sc)
     val kc = new KuduContext(kuduMasterList)
 
+    import sqc.implicits._
+
     // Load model
     //val model = RandomForestModel.load(streamingContext.sparkContext, modelDir)
 
@@ -61,12 +67,35 @@ object IIoTDemoStreaming {
     // Parse raw messages values into protobuf objects
     val kurapayloadDStream = kafkaDStream.map(message => {
       val key = message._1
-      val value = org.eclipse.kapua.service.device.call.message.kura.proto.kurapayload.KuraPayload.parseFrom(message._2);
+      //val value = org.eclipse.kapua.service.device.call.message.kura.proto.kurapayload.KuraPayload.parseFrom(message._2);
+      val value = KuraPayload.parseFrom(message._2);
 
       (key, value)
     })
 
+    // Convert (id, KuraPayload) tuple DStream into Telemetry DStream
+    val telemetryDStream = kurapayloadDStream.flatMap(message => {
+      val motor_id = message._1
+      val millis = message._2.timestamp
+      val metricsList = message._2.metric
 
+      var telemetryArray = new Array[Telemetry](metricsList.length)
+
+      var i = 0
+      for (metric <- metricsList) {
+        telemetryArray(i) = new Telemetry(motor_id, millis, metric.name, metric.floatValue)
+        i += 1
+      }
+
+      telemetryArray
+    })
+
+    // Convert each Telemetry RDD in the Telemetry DStream into a DataFrame and insert to Kudu
+    telemetryDStream.foreachRDD( rdd => {
+      val telemetryDF = rdd.toDF()
+
+      kc.insertRows(telemetryDF, kuduTelemetryTable)
+    })
 
 /*
     // Parse messages into vectors, fit to model, and append classification.
