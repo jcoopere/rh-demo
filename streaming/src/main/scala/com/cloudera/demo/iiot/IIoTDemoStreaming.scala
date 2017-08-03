@@ -1,4 +1,4 @@
-package com.cloudera.demo.cargo
+package com.cloudera.demo.iiot
 
 import java.util.HashMap
 
@@ -63,11 +63,11 @@ object IIoTDemoStreaming {
       "group.id" -> "IIoTDemoStreamingApp"
     )
     val kafkaDStream = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](ssc, kafkaConf, Set(kafkaTopicIn))
+    kafkaDStream.print()
 
     // Parse raw messages values into protobuf objects
     val kurapayloadDStream = kafkaDStream.map(message => {
       val key = message._1
-      //val value = org.eclipse.kapua.service.device.call.message.kura.proto.kurapayload.KuraPayload.parseFrom(message._2);
       val value = KuraPayload.parseFrom(message._2);
 
       (key, value)
@@ -83,7 +83,11 @@ object IIoTDemoStreaming {
 
       var i = 0
       for (metric <- metricsList) {
-        telemetryArray(i) = new Telemetry(motor_id, millis, metric.name, metric.floatValue)
+        val metricValue = {
+          if (metric.`type`.isDouble) metric.doubleValue.map(doubleVal => doubleVal.toFloat)
+          else metric.floatValue
+        }
+        telemetryArray(i) = new Telemetry(motor_id, millis, metric.name, metricValue)
         i += 1
       }
 
