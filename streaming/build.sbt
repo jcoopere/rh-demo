@@ -22,7 +22,8 @@ libraryDependencies ++= Seq(
 	"org.apache.spark" %% "spark-streaming-kafka" % sparkVersion,
 	"org.apache.spark" %% "spark-sql" % sparkVersion,
 	"org.apache.kudu" % "kudu-spark_2.10" % kuduVersion,
-	"org.apache.kudu" % "kudu-client" % kuduVersion
+	"org.apache.kudu" % "kudu-client" % kuduVersion,
+	"org.eclipse.paho" % "mqtt-client" % "0.4.0"
 )
 
 
@@ -41,6 +42,7 @@ resolvers ++= Seq(
 	"Second Typesafe repo" at "http://repo.typesafe.com/typesafe/maven-releases/",
 	"Mesosphere Public Repository" at "http://downloads.mesosphere.io/maven",
 	"Bintray sbt plugin releases" at "http://dl.bintray.com/sbt/sbt-plugin-releases/",
+	"MQTT Repository" at "https://repo.eclipse.org/content/repositories/paho-releases/",
 	Resolver.sonatypeRepo("public")
 )
 

@@ -6,12 +6,13 @@ import scala.collection.JavaConverters._
 
 import com.trueaccord.scalapb.spark._
 
+import com.cloudera.demo.iiot.util.MaintenanceScheduler
 import kafka.serializer._
 import org.apache.log4j.{Level, Logger}
 import org.apache.kudu.client._
 import org.apache.kudu.spark.kudu._
 import org.apache.spark.mllib.linalg.{Vector, Vectors}
-import org.apache.spark.mllib.tree.model.RandomForestModel
+import org.apache.spark.mllib.regression.{LabeledPoint, LinearRegressionModel}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{HashPartitioner, SparkContext, SparkConf}
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
@@ -26,6 +27,16 @@ import org.eclipse.kapua.service.device.call.message.kura.proto.kurapayload.Kura
 object IIoTDemoStreaming {
 
   case class Telemetry(motor_id:String, millis:Option[Long], metric:String, value:Option[Float])
+  case class MotorPrediction(motorId:String, statePrediction:String, ttfPrediction:Double)
+
+  class MotorMetrics() {
+    var speed = 0.0
+    var voltage = 0.0
+    var current = 0.0
+    var temp = 0.0
+    var noise = 0.0
+    var vibration = 0.0
+  }
 
   def main(args:Array[String]):Unit = {
 
@@ -42,8 +53,11 @@ object IIoTDemoStreaming {
 
     // Hardcoded params
     val kafkaTopicIn = "ingest"
+    val kafkaTopicOut = "event"
     val kuduTelemetryTable = "impala::iiot.telemetry"
-    //val modelDir = "/model/CargoRFModel"
+    val kuduMaintenanceTable = "impala::iiot.maintenance"
+    val stateModelDir = "/iiot-demo/model/state-classifier-model"
+    val ttfModelDir = "/iiot-demo/model/ttf-regression-model"
 
     // Configure app
     val sparkConf = new SparkConf().setAppName("IIoTDemoStreaming")
@@ -52,10 +66,13 @@ object IIoTDemoStreaming {
     val sqc = new SQLContext(sc)
     val kc = new KuduContext(kuduMasterList)
 
+    val maintenanceScheduler = new MaintenanceScheduler(kafkaBrokerList, kafkaTopicOut)
+
     import sqc.implicits._
 
-    // Load model
-    //val model = RandomForestModel.load(streamingContext.sparkContext, modelDir)
+    // Load models
+    val stateModel = LinearRegressionModel.load(ssc.sparkContext, stateModelDir)
+    val ttfModel = LinearRegressionModel.load(ssc.sparkContext, ttfModelDir)
 
     // Consume messages from Kafka
     val kafkaConf = Map[String,String](
@@ -95,11 +112,123 @@ object IIoTDemoStreaming {
     })
 
     // Convert each Telemetry RDD in the Telemetry DStream into a DataFrame and insert to Kudu
-    telemetryDStream.foreachRDD( rdd => {
+    telemetryDStream.foreachRDD(rdd => {
       val telemetryDF = rdd.toDF()
 
       kc.insertRows(telemetryDF, kuduTelemetryTable)
     })
+
+
+
+
+
+
+    // ANALYTICS
+    // For demo simplicity, only consider the highest timestamped payload per key in this microbatch.
+    val kurapayloadMostRecentDStream = kurapayloadDStream.reduceByKey((payloadA:KuraPayload, payloadB:KuraPayload) => {
+      if (payloadA.getTimestamp > payloadB.getTimestamp) payloadA
+      else payloadB
+    })
+
+    val predictionDStream = kurapayloadMostRecentDStream.map(message => {
+      val key = message._1
+      val metrics = message._2.metric
+
+      val metricsObj = new MotorMetrics()
+
+      metrics.foreach(metric => {
+        metric.name match {
+          case "speed" => { metricsObj.speed = metric.getDoubleValue }
+          case "voltage" => { metricsObj.voltage = metric.getDoubleValue }
+          case "current" => { metricsObj.current = metric.getDoubleValue }
+          case "temp" => { metricsObj.temp = metric.getDoubleValue }
+          case "noise" => { metricsObj.noise = metric.getDoubleValue }
+          case "vibration" => { metricsObj.vibration = metric.getDoubleValue }
+        }
+      })
+
+      val vector = Vectors.dense(metricsObj.speed, metricsObj.voltage, metricsObj.current, metricsObj.temp, metricsObj.noise, metricsObj.vibration)
+
+      val statePrediction = stateModel.predict(vector)
+      val ttfPrediction = ttfModel.predict(vector)
+
+      // TODO: interpret prediction
+      (key, new MotorPrediction(key, statePrediction.toString, ttfPrediction))
+    })
+
+    // Handle predictions.
+/*    predictionDStream.foreachRDD(rdd => {
+      rdd.foreach(value => {
+        maintenanceScheduler.evaluate(value._1, value._2, value._3)
+      })
+    })
+*/
+
+
+    // Handle predictions.
+    val maintenanceDStream = predictionDStream.updateStateByKey[MaintenanceScheduler]((predictions:Seq[MotorPrediction], maintenanceScheduler:Option[MaintenanceScheduler]) => {
+      val scheduler = {
+        if (maintenanceScheduler.isEmpty) new MaintenanceScheduler(kafkaBrokerList, kafkaTopicOut)
+        else maintenanceScheduler.get
+      }
+
+      predictions.foreach(prediction => {
+        scheduler.evaluate(prediction.motorId, prediction.statePrediction, prediction.ttfPrediction)
+      })
+
+      Some(scheduler)
+    })
+
+
+
+
+
+
+
+
+/*
+
+    // Convert Protobufs into MotorMetrics objects
+    val motormetricsDStream = kurapayloadDStream.map(message => {
+      val key = message._1
+      val speed = message._2.metric.withName("speed").getDoubleValue()
+      val voltage = message._2.metric.withName("voltage").getDoubleValue()
+      val current = message._2.metric.withName("current").getDoubleValue()
+      val temp = message._2.metric.withName("temp").getDoubleValue()
+      val noise = message._2.metric.withName("noise").getDoubleValue()
+      val vibration = message._2.metric.withName("vibration").getDoubleValue()
+
+      val value = new MotorMetrics(speed, voltage, current, temp, noise, vibration)
+
+      (key, value)
+    })
+
+    // Reduce to a single MotorMetrics object that is the average of all in this microbatch
+    val averagedMotorMetricsDStream = motormetricsDStream.reduceByKey((mm1, mm2) => {
+      val averageSpeed = ((mm1.speed + mm2.speed) / 2)
+      val averageVoltage = ((mm1.speed + mm2.speed) / 2)
+      val averageCurrent = ((mm1.speed + mm2.speed) / 2)
+      val averageTemp = ((mm1.speed + mm2.speed) / 2)
+      val averageNoise = ((mm1.speed + mm2.speed) / 2)
+      val averageVibration = ((mm1.speed + mm2.speed) / 2)
+
+      new MotorMetrics(averageSpeed, averageVoltage, averageCurrent, averageTemp, averageNoise, averageVibration)
+    })
+
+    val averagedVectorsDStream =
+
+    // Vectorize telemetry data, fit to time-to-failure regression model, and schedule maintenance.
+    kurapayloadDStream.foreachRDD(rdd => {
+      rdd.foreachPartition(partition => {
+        // TODO
+        partition.foreach(reading => {
+          // TODO
+        })
+      })
+    })
+*/
+
+
 
 /*
     // Parse messages into vectors, fit to model, and append classification.
@@ -137,23 +266,7 @@ object IIoTDemoStreaming {
       compact(render(json_out))
     })
 
-    // Write results to kafka.
-    readings.foreachRDD(rdd => {
-      rdd.foreachPartition ( partition => {
-        val props = new HashMap[String, Object]()
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaBrokerList)
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
 
-        val producer = new KafkaProducer[String, String](props)
-
-        partition.foreach(reading => {
-          val message = new ProducerRecord[String, String](kafkaTopicOut, null, reading)
-          producer.send(message)
-        })
-        producer.close()
-      })
-    })
 */
 
     ssc.checkpoint("/tmp/checkpoint")

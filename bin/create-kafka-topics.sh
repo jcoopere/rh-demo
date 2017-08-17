@@ -7,7 +7,7 @@ dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 printUsage() {
   echo "Usage: $0 <zookeeper quorum>"
   echo
-  echo "e.g. $0 localhost:2181"
+  echo "e.g. $0 localhost:2181 or '10.0.26.52:2181'"
 }
 
 # Check args.
@@ -18,7 +18,17 @@ fi
 
 zk=$1
 
-# Create Kafka topics "cargo-in" and "cargo-out" in inbound and outbound data.
-kafka-topics --zookeeper $zk --create --topic cargo-in --partitions 1 --replication-factor 1
 
-kafka-topics --zookeeper $zk --create --topic cargo-out --partitions 1 --replication-factor 1
+## Create Kafka topics
+
+# Data ingest topic (inbound from Kapua)
+kafka-topics --zookeeper $zk --create --topic ingest --partitions 1 --replication-factor 1
+
+# Events topic (outbound from Spark Streaming)
+kafka-topics --zookeeper $zk --create --topic event --partitions 1 --replication-factor 1
+
+# Model topic (outbound from Spark model training)
+kafka-topics --zookeeper $zk --create --topic model --partitions 1 --replication-factor 1
+
+
+
