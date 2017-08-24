@@ -31,9 +31,9 @@ class MaintenanceScheduler(mqttBroker:String, mqttTopic:String) extends Serializ
 	// Here, all we do is see if the motor is in a bad state and schedule an event if we haven't already.
 	// If we schedule new maintenance, send a message containing information about it over the "event" Kafka topic.
 	// If the motor is in a good state, reset.
-	def evaluate(motorId:String, state:String, ttf:Double) = {
+	def evaluate(motorId:String, state:Double, ttf:Double) = {
 		state match {
-			case "BAD POWER SUPPLY" => { 
+			case 1.0 => { 
 				if (!maintenanceScheduled) {
 					// Currently this is all hardcoded to enable only the specific demo scenario.
 					val eventId = "PSP10001"
@@ -41,7 +41,7 @@ class MaintenanceScheduler(mqttBroker:String, mqttTopic:String) extends Serializ
 					val startTime = createdTime + ttf.toLong
 					val endTime = startTime + (1000 * 60 * 60) // one hour maintenance window
 					val technician = "Webster Izlayme"
-					val reason = s"PREDICTIVE MAINTENANCE: BAD POWER SUPPLY. PREDICTED CRITICAL MOTOR FAILURE IN $ttf MILLISECONDS."
+					val reason = s"PREDICTIVE MAINTENANCE: BAD POWER SUPPLY. PREDICTED CRITICAL MOTOR FAILURE AFTER $ttf MILLISECONDS."
 					val priority = "CRITICAL"
 					val partId = "MTCP-050-3BD18"
 					val instructions = "CHECK & REPAIR POWER SUPPLY. REPLACE INDUCTION MOTOR. REFER TO MANUAL FOR STEP-BY-STEP INSTRUCTIONS: https://cdn.automationdirect.com/static/manuals/ironhorsemanual/ironhorsemanual.html"

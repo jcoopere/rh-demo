@@ -13,6 +13,8 @@ import org.apache.kudu.client._
 import org.apache.kudu.spark.kudu._
 import org.apache.spark.mllib.linalg.{Vector, Vectors}
 import org.apache.spark.mllib.regression.{LabeledPoint, LinearRegressionModel}
+import org.apache.spark.mllib.tree.RandomForest
+import org.apache.spark.mllib.tree.model.RandomForestModel
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{HashPartitioner, SparkContext, SparkConf}
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
@@ -27,7 +29,7 @@ import org.eclipse.kapua.service.device.call.message.kura.proto.kurapayload.Kura
 object IIoTDemoStreaming {
 
   case class Telemetry(motor_id:String, millis:Option[Long], metric:String, value:Option[Float])
-  case class MotorPrediction(motorId:String, statePrediction:String, ttfPrediction:Double)
+  case class MotorPrediction(motorId:String, statePrediction:Double, ttfPrediction:Double)
 
   class MotorMetrics() {
     var speed = 0.0
@@ -56,8 +58,8 @@ object IIoTDemoStreaming {
     val kafkaTopicOut = "event"
     val kuduTelemetryTable = "impala::iiot.telemetry"
     val kuduMaintenanceTable = "impala::iiot.maintenance"
-    val stateModelDir = "/iiot-demo/model/state-classifier-model"
-    val ttfModelDir = "/iiot-demo/model/ttf-regression-model"
+    val stateModelDir = "/model/state-classifier-model"
+    //val ttfModelDir = "/iiot-demo/model/ttf-regression-model"
 
     // Configure app
     val sparkConf = new SparkConf().setAppName("IIoTDemoStreaming")
@@ -71,8 +73,8 @@ object IIoTDemoStreaming {
     import sqc.implicits._
 
     // Load models
-    val stateModel = LinearRegressionModel.load(ssc.sparkContext, stateModelDir)
-    val ttfModel = LinearRegressionModel.load(ssc.sparkContext, ttfModelDir)
+    val stateModel = RandomForestModel.load(ssc.sparkContext, stateModelDir)
+    //val ttfModel = LinearRegressionModel.load(ssc.sparkContext, ttfModelDir)
 
     // Consume messages from Kafka
     val kafkaConf = Map[String,String](
@@ -150,10 +152,10 @@ object IIoTDemoStreaming {
       val vector = Vectors.dense(metricsObj.speed, metricsObj.voltage, metricsObj.current, metricsObj.temp, metricsObj.noise, metricsObj.vibration)
 
       val statePrediction = stateModel.predict(vector)
-      val ttfPrediction = ttfModel.predict(vector)
+      //val ttfPrediction = ttfModel.predict(vector)
+      val ttfPrediction = 14400000.0 // hardcoded to schedule maintenance 4 hours out
 
-      // TODO: interpret prediction
-      (key, new MotorPrediction(key, statePrediction.toString, ttfPrediction))
+      (key, new MotorPrediction(key, statePrediction, ttfPrediction))
     })
 
     // Handle predictions.
