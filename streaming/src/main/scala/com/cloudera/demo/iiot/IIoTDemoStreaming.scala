@@ -183,6 +183,8 @@ object IIoTDemoStreaming {
       Some(scheduler)
     })
 
+    maintenanceDStream.print()
+
 
 
 
