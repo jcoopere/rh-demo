@@ -1,0 +1,1 @@
+ Usage: spark-submit --master yarn --deploy-mode client --class com.cloudera.demo.iiot.IIoTDemoStreaming /home/ec2-user/rh-demo/streaming/target/scala-2.10/iiot-demo-assembly-1.0.jar ip-10-0-26-52.us-west-2.compute.internal:2181 ip-10-0-26-113.us-west-2.compute.internal:9092 ip-10-0-26-52.us-west-2.compute.internal:7051 broker-redhat-iot.apps.cloudera-iot-demo.rhiot.org:31833
