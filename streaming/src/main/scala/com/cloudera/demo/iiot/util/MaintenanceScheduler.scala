@@ -16,15 +16,15 @@ import scala.collection.mutable.HashSet
  * In practice, this would evaluate the current predicted maintenance needs of a
  * particular machine and coordinate with other systems.
  */
-case class MaintenanceEvent(eventId:String, motorId:String, createdTime:Long, startTime:Long, endTime:Long, technician:String, reason:String, priority:String, partId:String, instructions:String) {
+case class MaintenanceEvent(eventId:String, description:String, timestamp:Long, mType:String, reason:String, startTime:Long, endTime:Long) {
 	def toJsonString():String = {
-		var json = s"""{\"eventId\":\"$eventId\",\"motorId\":\"$motorId\",\"createdTime\":$createdTime,\"startTime\":$startTime,\"endTime\":endTime,\"technician\":\"$technician\",\"reason\":\"$reason\",\"priority\":\"$priority\",\"partId\":\"$partId\",\"instructions\":\"$instructions\"}"""" // " So the triple quotes don't confused the IDE. Scala is weird...		
+		var json = s"""{\"id\":\"$eventId\",\"description\":\"$description\",\"timestamp\":$timestamp,\"type\":\"$mType\",\"details\":{\"reason\":\"$reason\",\"start\":$startTime,\"end\":$endTime}}"""" // " So the triple quotes don't confused the IDE. Scala is weird...		
 		
 		return json
 	}
 }
 
-class MaintenanceScheduler(mqttBroker:String, mqttTopic:String) extends Serializable {
+class MaintenanceScheduler(mqttBroker:String) extends Serializable {
 	var maintenanceScheduled = false
 
 	// Simulate evaluating the machine state against schedule and other considerations.
@@ -36,19 +36,17 @@ class MaintenanceScheduler(mqttBroker:String, mqttTopic:String) extends Serializ
 			case 1.0 => { 
 				if (!maintenanceScheduled) {
 					// Currently this is all hardcoded to enable only the specific demo scenario.
-					val eventId = "PSP10001"
-					val createdTime = System.currentTimeMillis()
-					val startTime = createdTime + ttf.toLong
+					val eventId = "D846E916-FA87-4ACE-97A6-D0C91C5116C6"
+					val description = "Maintenance Required"
+					val timestamp = System.currentTimeMillis()
+					val mType = "maintenance"
+					val reason = "Predictive Maintenance Alert: Machine predicted in state BAD_POWER_SUPPLY with impending failure."
+					val startTime = timestamp + ttf.toLong
 					val endTime = startTime + (1000 * 60 * 60) // one hour maintenance window
-					val technician = "Webster Izlayme"
-					val reason = s"PREDICTIVE MAINTENANCE: BAD POWER SUPPLY. PREDICTED CRITICAL MOTOR FAILURE AFTER $ttf MILLISECONDS."
-					val priority = "CRITICAL"
-					val partId = "MTCP-050-3BD18"
-					val instructions = "CHECK & REPAIR POWER SUPPLY. REPLACE INDUCTION MOTOR. REFER TO MANUAL FOR STEP-BY-STEP INSTRUCTIONS: https://cdn.automationdirect.com/static/manuals/ironhorsemanual/ironhorsemanual.html"
 
-					val event = new MaintenanceEvent(eventId, motorId, createdTime, startTime, endTime, technician, reason, priority, partId, instructions)
+					val event = new MaintenanceEvent(eventId, description, timestamp, mType, reason, startTime, endTime)
 
-					publishEventOverMqtt(event)
+					publishEventOverMqtt(motorId, event)
 /*
 					// Send Kafka message
 					val props = new Properties
@@ -74,7 +72,7 @@ class MaintenanceScheduler(mqttBroker:String, mqttTopic:String) extends Serializ
 		}
 	}
 
-	private def publishEventOverMqtt(event:MaintenanceEvent) {
+	private def publishEventOverMqtt(motorId:String, event:MaintenanceEvent) {
 		var client:MqttClient = null
 
 		try {
@@ -82,7 +80,7 @@ class MaintenanceScheduler(mqttBroker:String, mqttTopic:String) extends Serializ
 
 			client.connect()
 
-			val msgTopic = client.getTopic(mqttTopic)
+			val msgTopic = client.getTopic(motorId + "/alerts")
 			val msg = new MqttMessage(event.toJsonString.getBytes("utf-8"))
 
 			msgTopic.publish(msg)
