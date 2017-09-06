@@ -25,7 +25,8 @@ case class MaintenanceEvent(eventId:String, description:String, timestamp:Long, 
 }
 
 class MaintenanceScheduler(mqttBroker:String) extends Serializable {
-	var maintenanceScheduled = false
+	var softFailureScheduled = false
+	var hardFailureScheduled = false
 
 	// Simulate evaluating the machine state against schedule and other considerations.
 	// Here, all we do is see if the motor is in a bad state and schedule an event if we haven't already.
@@ -33,8 +34,12 @@ class MaintenanceScheduler(mqttBroker:String) extends Serializable {
 	// If the motor is in a good state, reset.
 	def evaluate(motorId:String, state:Double, ttf:Double) = {
 		state match {
+			case 0.0 => {
+				softFailureScheduled = false
+				hardFailureScheduled = false
+			}
 			case 1.0 => { 
-				if (!maintenanceScheduled) {
+				if (!softFailureScheduled) {
 					// Currently this is all hardcoded to enable only the specific demo scenario.
 					val eventId = "D846E916-FA87-4ACE-97A6-D0C91C5116C6"
 					val description = "Maintenance Required"
@@ -61,12 +66,38 @@ class MaintenanceScheduler(mqttBroker:String) extends Serializable {
 			        producer.send(message)
 			        producer.close()
 */
-					maintenanceScheduled = true
+					softFailureScheduled = true
 				}
 			}
-			case _ => {
-				if (maintenanceScheduled) {
-					maintenanceScheduled = false
+			case 2.0 => { 
+				if (!hardFailureScheduled) {
+					// Currently this is all hardcoded to enable only the specific demo scenario.
+					val eventId = "D846E916-FA87-4ACE-97A6-D0C91C5116C6"
+					val description = "Maintenance Required"
+					val timestamp = System.currentTimeMillis()
+					val mType = "maintenance"
+					val reason = "Predictive Maintenance Alert: Machine predicted in state ROTOR_LOCK with immediate failure."
+					val startTime = timestamp + ttf.toLong
+					val endTime = startTime + (1000 * 60 * 60 * 2) // two hour maintenance window
+
+					val event = new MaintenanceEvent(eventId, description, timestamp, mType, reason, startTime, endTime)
+
+					publishEventOverMqtt(motorId, event)
+/*
+					// Send Kafka message
+					val props = new Properties
+			        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaBrokerList)
+			        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+			        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+
+			        val producer = new KafkaProducer[String, String](props)
+
+			        val message = new ProducerRecord[String, String](kafkaTopic, null, event.toJson())
+
+			        producer.send(message)
+			        producer.close()
+*/
+					hardFailureScheduled = true
 				}
 			}
 		}

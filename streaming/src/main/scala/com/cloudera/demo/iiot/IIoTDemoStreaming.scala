@@ -69,8 +69,6 @@ object IIoTDemoStreaming {
     val sqc = new SQLContext(sc)
     val kc = new KuduContext(kuduMasterList)
 
-    //val maintenanceScheduler = new MaintenanceScheduler(kafkaBrokerList, kafkaTopicOut)
-
     import sqc.implicits._
 
     // Load models
@@ -120,12 +118,8 @@ object IIoTDemoStreaming {
       kc.insertRows(telemetryDF, kuduTelemetryTable)
     })
 
-
-
-
-
-
     // ANALYTICS
+
     // For demo simplicity, only consider the highest timestamped payload per key in this microbatch.
     val kurapayloadMostRecentDStream = kurapayloadDStream.reduceByKey((payloadA:KuraPayload, payloadB:KuraPayload) => {
       if (payloadA.getTimestamp > payloadB.getTimestamp) payloadA
@@ -152,22 +146,20 @@ object IIoTDemoStreaming {
       val vector = Vectors.dense(metricsObj.speed, metricsObj.voltage, metricsObj.current, metricsObj.temp, metricsObj.noise, metricsObj.vibration)
 
       val statePrediction = stateModel.predict(vector)
+
       //val ttfPrediction = ttfModel.predict(vector)
-      val ttfPrediction = 14400000.0 // hardcoded to schedule maintenance 4 hours out
+      // ttf currently hardcoded
+      val ttfPrediction = statePrediction match {
+        case 0.0 => 2592000000.0 // 30 days
+        case 1.0 => 14400000.0 // 4 hours
+        case 2.0 => 0 // now
+      }
 
       (key, new MotorPrediction(key, statePrediction, ttfPrediction))
     })
 
-    // Handle predictions.
-/*    predictionDStream.foreachRDD(rdd => {
-      rdd.foreach(value => {
-        maintenanceScheduler.evaluate(value._1, value._2, value._3)
-      })
-    })
-*/
-
+    // PRINT
     predictionDStream.print()
-
 
     // Handle predictions.
     val maintenanceDStream = predictionDStream.updateStateByKey[MaintenanceScheduler]((predictions:Seq[MotorPrediction], maintenanceScheduler:Option[MaintenanceScheduler]) => {
@@ -183,97 +175,8 @@ object IIoTDemoStreaming {
       Some(scheduler)
     })
 
+    // PRINT
     maintenanceDStream.print()
-
-
-
-
-
-
-
-
-/*
-
-    // Convert Protobufs into MotorMetrics objects
-    val motormetricsDStream = kurapayloadDStream.map(message => {
-      val key = message._1
-      val speed = message._2.metric.withName("speed").getDoubleValue()
-      val voltage = message._2.metric.withName("voltage").getDoubleValue()
-      val current = message._2.metric.withName("current").getDoubleValue()
-      val temp = message._2.metric.withName("temp").getDoubleValue()
-      val noise = message._2.metric.withName("noise").getDoubleValue()
-      val vibration = message._2.metric.withName("vibration").getDoubleValue()
-
-      val value = new MotorMetrics(speed, voltage, current, temp, noise, vibration)
-
-      (key, value)
-    })
-
-    // Reduce to a single MotorMetrics object that is the average of all in this microbatch
-    val averagedMotorMetricsDStream = motormetricsDStream.reduceByKey((mm1, mm2) => {
-      val averageSpeed = ((mm1.speed + mm2.speed) / 2)
-      val averageVoltage = ((mm1.speed + mm2.speed) / 2)
-      val averageCurrent = ((mm1.speed + mm2.speed) / 2)
-      val averageTemp = ((mm1.speed + mm2.speed) / 2)
-      val averageNoise = ((mm1.speed + mm2.speed) / 2)
-      val averageVibration = ((mm1.speed + mm2.speed) / 2)
-
-      new MotorMetrics(averageSpeed, averageVoltage, averageCurrent, averageTemp, averageNoise, averageVibration)
-    })
-
-    val averagedVectorsDStream =
-
-    // Vectorize telemetry data, fit to time-to-failure regression model, and schedule maintenance.
-    kurapayloadDStream.foreachRDD(rdd => {
-      rdd.foreachPartition(partition => {
-        // TODO
-        partition.foreach(reading => {
-          // TODO
-        })
-      })
-    })
-*/
-
-
-
-/*
-    // Parse messages into vectors, fit to model, and append classification.
-    val readings = messages.map(message => {
-      // Extract JSON from message.
-      val json = parse(message._2)
-
-      // Parse JSON.
-      val pkgId = compact(render(json \ "pkgId"))
-      val timestamp = compact(render(json \ "timestamp")).toInt
-      val temperature = compact(render(json \ "temperature")).toFloat
-      val humidity = compact(render(json \ "humidity")).toFloat
-      val lat = compact(render(json \ "position" \ "lat")).toFloat
-      val lng = compact(render(json \ "position" \ "lng")).toFloat
-      val progress = compact(render(json \ "position" \ "progress")).toFloat
-      val displacement = compact(render(json \ "displacement")).toFloat
-
-      // Create a feature vector.
-      val vector = Vectors.dense(temperature, humidity, displacement)
-
-      // Make a prediction.
-      val classification = model.predict(vector)
-
-      // Interpret the result.
-      val isPredictedDamaged = {
-        if (classification == 1) true;
-        else false;
-      }
-
-      // Return new JSON String.
-      val json_out = 
-        ("pkgId" -> pkgId) ~
-        ("isPredictedDamaged" -> isPredictedDamaged)
-
-      compact(render(json_out))
-    })
-
-
-*/
 
     ssc.checkpoint("/tmp/checkpoint")
     ssc.start()
