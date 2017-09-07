@@ -153,6 +153,7 @@ object IIoTDemoStreaming {
           case "temp" => { metricsObj.temp = metric.getDoubleValue }
           case "noise" => { metricsObj.noise = metric.getDoubleValue }
           case "vibration" => { metricsObj.vibration = metric.getDoubleValue }
+          case other => {} // do nothing
         }
       })
 
