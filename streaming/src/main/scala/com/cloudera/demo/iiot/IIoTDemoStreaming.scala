@@ -1,8 +1,11 @@
 package com.cloudera.demo.iiot
 
+import java.io.ByteArrayInputStream
 import java.util.HashMap
+import java.util.zip.GZIPInputStream
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 import com.trueaccord.scalapb.spark._
 
@@ -85,7 +88,17 @@ object IIoTDemoStreaming {
     // Parse raw messages values into protobuf objects
     val kurapayloadDStream = kafkaDStream.map(message => {
       val key = message._1
-      val value = KuraPayload.parseFrom(message._2);
+      //val value = KuraPayload.parseFrom(message._2);
+
+      val value:KuraPayload = {
+        val tryUnzipAndParse = Try { KuraPayload.parseFrom(new GZIPInputStream(new ByteArrayInputStream(message._2))) }
+        if (tryUnzipAndParse.isSuccess) {
+          tryUnzipAndParse.get
+        }
+        else {
+          KuraPayload.parseFrom(message._2)
+        }
+      }
 
       (key, value)
     })
