@@ -81,7 +81,7 @@ class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:
 		var client:MqttClient = null
 
 		try {
-			val client = new MqttClient(mqttBroker, MqttClient.generateClientId, new MqttDefaultFilePersistence("/tmp"))
+			client = new MqttClient(mqttBroker, MqttClient.generateClientId, new MqttDefaultFilePersistence("/tmp"))
 			val opts = new MqttConnectOptions()
 			opts.setUserName(mqttUserName)
 			opts.setPassword(mqttPassword.toCharArray)
@@ -95,7 +95,7 @@ class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:
 		} catch {
 			case e:MqttException => println(e)
 		} finally {
-			client.disconnect()
+			if (client != null) client.disconnect()
 		}
 	}
 
