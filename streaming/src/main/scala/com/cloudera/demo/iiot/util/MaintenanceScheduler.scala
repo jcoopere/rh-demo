@@ -86,7 +86,7 @@ class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:
 			opts.setUserName(mqttUserName)
 			opts.setPassword(mqttPassword.toCharArray)
 
-			client.connect()
+			client.connect(opts)
 
 			val msgTopic = client.getTopic(motorId + "/alerts")
 			val msg = new MqttMessage(event.toJsonString.getBytes("utf-8"))
