@@ -27,6 +27,7 @@ case class MaintenanceEvent(eventId:String, description:String, timestamp:Long, 
 
 class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:String) extends Serializable {
 	@transient lazy val log = org.apache.log4j.LogManager.getRootLogger()
+	log.setLevel(Level.INFO)
 	var softFailureScheduled = false
 	var hardFailureScheduled = false
 
