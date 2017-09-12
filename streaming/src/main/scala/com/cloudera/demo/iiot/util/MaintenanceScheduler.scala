@@ -4,6 +4,7 @@ import java.lang.System
 import java.util.Properties
 
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
+import org.apache.log4j._
 
 import org.eclipse.paho.client.mqttv3._
 import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence
@@ -25,6 +26,7 @@ case class MaintenanceEvent(eventId:String, description:String, timestamp:Long, 
 }
 
 class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:String) extends Serializable {
+	@transient lazy val log = org.apache.log4j.LogManager.getLogger("myLogger")
 	var softFailureScheduled = false
 	var hardFailureScheduled = false
 
@@ -78,22 +80,29 @@ class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:
 	}
 
 	private def publishEventOverMqtt(motorId:String, event:MaintenanceEvent) {
+		log.info("Attempting to publish MQTT message...")
 		var client:MqttClient = null
 
 		try {
+			log.info("Connecting to MQTT client at broker: " + mqttBroker)
 			client = new MqttClient(mqttBroker, MqttClient.generateClientId, new MqttDefaultFilePersistence("/tmp"))
 			val opts = new MqttConnectOptions()
 			opts.setUserName(mqttUserName)
 			opts.setPassword(mqttPassword.toCharArray)
 
+			log.info("Connecting to MQTT client at broker: " + mqttBroker)
 			client.connect(opts)
+			log.info("Client connection successful!")
 
 			val msgTopic = client.getTopic(motorId + "/alerts")
+			log.info("Attempting to send message: " + event.toJsonString + " on topic: " + motorId + "/alerts")
 			val msg = new MqttMessage(event.toJsonString.getBytes("utf-8"))
 
 			msgTopic.publish(msg)
+
+			log.info("Message published!")
 		} catch {
-			case e:MqttException => println(e)
+			case e:Exception => log.error(e)
 		} finally {
 			if (client != null) client.disconnect()
 		}
