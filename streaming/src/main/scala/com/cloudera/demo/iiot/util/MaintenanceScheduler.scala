@@ -19,7 +19,7 @@ import scala.collection.mutable.HashSet
  */
 case class MaintenanceEvent(eventId:String, description:String, timestamp:Long, mType:String, reason:String, startTime:Long, endTime:Long) {
 	def toJsonString():String = {
-		var json = s"""{\"id\":\"$eventId\",\"description\":\"$description\",\"timestamp\":$timestamp,\"type\":\"$mType\",\"details\":{\"reason\":\"$reason\",\"start\":$startTime,\"end\":$endTime}}"""" // " So the triple quotes don't confused the IDE. Scala is weird...		
+		var json = s"""{\"id\":\"$eventId\",\"description\":\"$description\",\"timestamp\":$timestamp,\"type\":\"$mType\",\"details\":{\"reason\":\"$reason\",\"start\":$startTime,\"end\":$endTime}}""" // " So the triple quotes don't confused the IDE. Scala is weird...		
 		
 		return json
 	}
