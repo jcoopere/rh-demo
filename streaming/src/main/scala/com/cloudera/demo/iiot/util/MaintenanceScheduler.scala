@@ -24,7 +24,7 @@ case class MaintenanceEvent(eventId:String, description:String, timestamp:Long, 
 	}
 }
 
-class MaintenanceScheduler(mqttBroker:String) extends Serializable {
+class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:String) extends Serializable {
 	var softFailureScheduled = false
 	var hardFailureScheduled = false
 
@@ -82,6 +82,9 @@ class MaintenanceScheduler(mqttBroker:String) extends Serializable {
 
 		try {
 			val client = new MqttClient(mqttBroker, MqttClient.generateClientId, new MqttDefaultFilePersistence("/tmp"))
+			val opts = new MqttConnectOptions()
+			opts.setUserName(mqttUserName)
+			opts.setPassword(mqttPassword.toCharArray)
 
 			client.connect()
 

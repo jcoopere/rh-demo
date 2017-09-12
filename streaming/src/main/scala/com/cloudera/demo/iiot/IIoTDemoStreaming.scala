@@ -47,7 +47,7 @@ object IIoTDemoStreaming {
 
     // Usage
     if (args.length == 0) {
-      println("Args: <zk e.g. zookeeper-1:2181> <kafka-broker-list e.g. broker-1:9092,broker-2:9092> <kudu-master e.g. kudu-master-1:7051,kudu-master-2:7051 <mqtt-broker>")
+      println("Args: <zk e.g. zookeeper-1:2181> <kafka-broker-list e.g. broker-1:9092,broker-2:9092> <kudu-master e.g. kudu-master-1:7051,kudu-master-2:7051 <mqtt-broker> <mqtt-user-name> <mqtt-password>")
       return
     }
 
@@ -56,6 +56,8 @@ object IIoTDemoStreaming {
     val kafkaBrokerList = args(1)
     val kuduMasterList = args(2)
     val mqttBroker = args(3)
+    val mqttUserName = args(4)
+    val mqttPassword = args(5)
 
     // Hardcoded params
     val kafkaTopicIn = "ingest"
@@ -84,6 +86,9 @@ object IIoTDemoStreaming {
       "group.id" -> "IIoTDemoStreamingApp"
     )
     val kafkaDStream = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](ssc, kafkaConf, Set(kafkaTopicIn))
+
+    // Print Kafka stream
+    kafkaDStream.print()
 
     // Parse raw messages values into protobuf objects
     val kurapayloadDStream = kafkaDStream.map(message => {
@@ -178,7 +183,7 @@ object IIoTDemoStreaming {
     // Handle predictions.
     val maintenanceDStream = predictionDStream.updateStateByKey[MaintenanceScheduler]((predictions:Seq[MotorPrediction], maintenanceScheduler:Option[MaintenanceScheduler]) => {
       val scheduler = {
-        if (maintenanceScheduler.isEmpty) new MaintenanceScheduler(mqttBroker)
+        if (maintenanceScheduler.isEmpty) new MaintenanceScheduler(mqttBroker, mqttUserName, mqttPassword)
         else maintenanceScheduler.get
       }
 
