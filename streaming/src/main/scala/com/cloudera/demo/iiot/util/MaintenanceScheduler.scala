@@ -30,6 +30,7 @@ class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:
 	log.setLevel(Level.INFO)
 	var softFailureScheduled = false
 	var hardFailureScheduled = false
+	var mostRecentMessage = ""
 
 	// Simulate evaluating the machine state against schedule and other considerations.
 	// Here, all we do is see if the motor is in a bad state and schedule an event if we haven't already.
@@ -99,6 +100,8 @@ class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:
 			log.info("Attempting to send message: " + event.toJsonString + " on topic: " + motorId + "/alerts")
 			val msg = new MqttMessage(event.toJsonString.getBytes("utf-8"))
 
+			mostRecentMessage = "Topic: " + motorId + "/alerts Payload:" + event.toJsonString
+
 			msgTopic.publish(msg)
 
 			log.info("Message published!")
@@ -110,7 +113,7 @@ class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:
 	}
 
 	override def toString:String = {
-		s"MaintenanceScheduler($softFailureScheduled,$hardFailureScheduled)"
+		s"MaintenanceScheduler($softFailureScheduled,$hardFailureScheduled,$mostRecentMessage)"
 	}
 }
 
