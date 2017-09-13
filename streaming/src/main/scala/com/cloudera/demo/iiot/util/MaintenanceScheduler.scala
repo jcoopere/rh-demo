@@ -99,11 +99,12 @@ class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:
 			val topic = motorId + "/alerts"
 			val msgTopic = client.getTopic(topic)
 			log.info("Attempting to send message: " + event.toJsonString + " on topic: " + topic)
-			val msg = new MqttMessage(event.toJsonString.getBytes("utf-8"))
+			//val msg = new MqttMessage(event.toJsonString.getBytes("utf-8"))
 
 			mostRecentMessage = "Topic: " + motorId + "/alerts Payload:" + event.toJsonString
 
-			msgTopic.publish(msg)
+			//msgTopic.publish(msg)
+			msgTopic.publish(event.toJsonString.getBytes("utf-8"), 0, false)
 
 			log.info("Message published!")
 		} catch {
