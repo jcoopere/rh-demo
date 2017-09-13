@@ -23,7 +23,7 @@ libraryDependencies ++= Seq(
 	"org.apache.spark" %% "spark-sql" % sparkVersion,
 	"org.apache.kudu" % "kudu-spark_2.10" % kuduVersion,
 	"org.apache.kudu" % "kudu-client" % kuduVersion,
-	"org.eclipse.paho" % "mqtt-client" % "0.4.0"
+	"org.eclipse.paho" % "org.eclipse.paho.client.mqttv3" % "1.2.0"
 )
 
 
