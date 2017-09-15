@@ -28,9 +28,11 @@ case class MaintenanceEvent(eventId:String, description:String, timestamp:Long, 
 class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:String) extends Serializable {
 	@transient lazy val log = org.apache.log4j.Logger.getLogger(getClass.getName)
 	log.setLevel(Level.INFO)
-	var softFailureScheduled = false
-	var hardFailureScheduled = false
+
+	var failureScheduled = false
 	var mostRecentMessage = ""
+	var lastPredictedState = 0.0
+	var sequentialStatePredictionCount = 0
 
 	// Simulate evaluating the machine state against schedule and other considerations.
 	// Here, all we do is see if the motor is in a bad state and schedule an event if we haven't already.
@@ -39,43 +41,71 @@ class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:
 	def evaluate(motorId:String, state:Double, ttf:Double) = {
 		state match {
 			case 0.0 => {
-				softFailureScheduled = false
-				hardFailureScheduled = false
+				if (failureScheduled) {
+					if (state == lastPredictedState) {
+						if (sequentialStatePredictionCount > 2) {
+							failureScheduled = false
+						} else {
+							sequentialStatePredictionCount += 1
+						}
+					} else {
+						lastPredictedState = state
+						sequentialStatePredictionCount = 1
+					}
+				}
 			}
 			case 1.0 => { 
-				if (!softFailureScheduled) {
-					// Currently this is all hardcoded to enable only the specific demo scenario.
-					val eventId = "D846E916-FA87-4ACE-97A6-D0C91C5116C6"
-					val description = "Maintenance Required"
-					val timestamp = System.currentTimeMillis()
-					val mType = "maintenance"
-					val reason = "Predictive Maintenance Alert: Machine predicted in state BAD_POWER_SUPPLY with impending failure."
-					val startTime = timestamp + ttf.toLong
-					val endTime = startTime + (1000 * 60 * 60) // one hour maintenance window
+				if (!failureScheduled) {
+					if (state == lastPredictedState) {
+						if (sequentialStatePredictionCount > 2) {
+							// Currently this is all hardcoded to enable only the specific demo scenario.
+							val eventId = "D846E916-FA87-4ACE-97A6-D0C91C5116C6"
+							val description = "Maintenance Required"
+							val timestamp = System.currentTimeMillis()
+							val mType = "maintenance"
+							val reason = "Predictive Maintenance Alert: Machine predicted in state BAD_POWER_SUPPLY with impending failure."
+							val startTime = timestamp + ttf.toLong
+							val endTime = startTime + (1000 * 60 * 60) // one hour maintenance window
 
-					val event = new MaintenanceEvent(eventId, description, timestamp, mType, reason, startTime, endTime)
+							val event = new MaintenanceEvent(eventId, description, timestamp, mType, reason, startTime, endTime)
 
-					publishEventOverMqtt(motorId, event)
+							publishEventOverMqtt(motorId, event)
 
-					softFailureScheduled = true
+							failureScheduled = true
+						} else {
+							sequentialStatePredictionCount += 1
+						}
+					} else {
+						lastPredictedState = state
+						sequentialStatePredictionCount = 1
+					}
 				}
 			}
 			case 2.0 => { 
-				if (!hardFailureScheduled) {
-					// Currently this is all hardcoded to enable only the specific demo scenario.
-					val eventId = "D846E916-FA87-4ACE-97A6-D0C91C5116C6"
-					val description = "Maintenance Required"
-					val timestamp = System.currentTimeMillis()
-					val mType = "maintenance"
-					val reason = "Predictive Maintenance Alert: Machine predicted in state ROTOR_LOCK with immediate failure."
-					val startTime = timestamp + ttf.toLong
-					val endTime = startTime + (1000 * 60 * 60 * 2) // two hour maintenance window
+				if (!failureScheduled) {
+					if (state == lastPredictedState) {
+						if (sequentialStatePredictionCount > 2) {
+							// Currently this is all hardcoded to enable only the specific demo scenario.
+							val eventId = "D846E916-FA87-4ACE-97A6-D0C91C5116C6"
+							val description = "Maintenance Required"
+							val timestamp = System.currentTimeMillis()
+							val mType = "maintenance"
+							val reason = "Predictive Maintenance Alert: Machine predicted in state ROTOR_LOCK with immediate failure."
+							val startTime = timestamp + ttf.toLong
+							val endTime = startTime + (1000 * 60 * 60 * 2) // two hour maintenance window
 
-					val event = new MaintenanceEvent(eventId, description, timestamp, mType, reason, startTime, endTime)
+							val event = new MaintenanceEvent(eventId, description, timestamp, mType, reason, startTime, endTime)
 
-					publishEventOverMqtt(motorId, event)
+							publishEventOverMqtt(motorId, event)
 
-					hardFailureScheduled = true
+							failureScheduled = true
+						} else {
+							sequentialStatePredictionCount += 1
+						}
+					} else {
+						lastPredictedState = state
+						sequentialStatePredictionCount = 1
+					}
 				}
 			}
 		}
@@ -115,7 +145,7 @@ class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:
 	}
 
 	override def toString:String = {
-		s"MaintenanceScheduler($softFailureScheduled,$hardFailureScheduled,$mostRecentMessage)"
+		s"MaintenanceScheduler($failureScheduled,$lastPredictedState,$sequentialStatePredictionCount,$mostRecentMessage)"
 	}
 }
 
