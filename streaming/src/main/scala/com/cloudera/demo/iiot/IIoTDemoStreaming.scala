@@ -61,9 +61,7 @@ object IIoTDemoStreaming {
 
     // Hardcoded params
     val kafkaTopicIn = "ingest"
-    val kafkaTopicOut = "event"
     val kuduTelemetryTable = "impala::iiot.telemetry"
-    val kuduMaintenanceTable = "impala::iiot.maintenance"
     val stateModelDir = "/model/state-classifier-model"
     //val ttfModelDir = "/iiot-demo/model/ttf-regression-model"
 
@@ -73,6 +71,8 @@ object IIoTDemoStreaming {
     val ssc = new StreamingContext(sc, Seconds(3))
     val sqc = new SQLContext(sc)
     val kc = new KuduContext(kuduMasterList)
+
+    sc.setLogLevel("ERROR")
 
     import sqc.implicits._
 
