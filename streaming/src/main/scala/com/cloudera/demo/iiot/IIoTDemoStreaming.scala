@@ -63,7 +63,6 @@ object IIoTDemoStreaming {
     val kafkaTopicIn = "ingest"
     val kuduTelemetryTable = "impala::iiot.telemetry"
     val stateModelDir = "/model/state-classifier-model"
-    //val ttfModelDir = "/iiot-demo/model/ttf-regression-model"
 
     // Configure app
     val sparkConf = new SparkConf().setAppName("IIoTDemoStreaming")
@@ -72,13 +71,10 @@ object IIoTDemoStreaming {
     val sqc = new SQLContext(sc)
     val kc = new KuduContext(kuduMasterList)
 
-    sc.setLogLevel("ERROR")
-
     import sqc.implicits._
 
     // Load models
     val stateModel = RandomForestModel.load(ssc.sparkContext, stateModelDir)
-    //val ttfModel = LinearRegressionModel.load(ssc.sparkContext, ttfModelDir)
 
     // Consume messages from Kafka
     val kafkaConf = Map[String,String](
@@ -87,13 +83,9 @@ object IIoTDemoStreaming {
     )
     val kafkaDStream = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](ssc, kafkaConf, Set(kafkaTopicIn))
 
-    // Print Kafka stream
-    kafkaDStream.print()
-
     // Parse raw messages values into protobuf objects
     val kurapayloadDStream = kafkaDStream.map(message => {
       val key = message._1
-      //val value = KuraPayload.parseFrom(message._2);
 
       val value:KuraPayload = {
         val tryUnzipAndParse = Try { KuraPayload.parseFrom(new GZIPInputStream(new ByteArrayInputStream(message._2))) }
@@ -136,8 +128,6 @@ object IIoTDemoStreaming {
       kc.insertRows(telemetryDF, kuduTelemetryTable)
     })
 
-    // ANALYTICS
-
     // For demo simplicity, only consider the highest timestamped payload per key in this microbatch.
     val kurapayloadMostRecentDStream = kurapayloadDStream.reduceByKey((payloadA:KuraPayload, payloadB:KuraPayload) => {
       if (payloadA.getTimestamp > payloadB.getTimestamp) payloadA
@@ -166,7 +156,6 @@ object IIoTDemoStreaming {
 
       val statePrediction = stateModel.predict(vector)
 
-      //val ttfPrediction = ttfModel.predict(vector)
       // ttf currently hardcoded
       val ttfPrediction = statePrediction match {
         case 0.0 => 2592000000.0 // 30 days
@@ -176,9 +165,6 @@ object IIoTDemoStreaming {
 
       (key, new MotorPrediction(key, statePrediction, ttfPrediction))
     })
-
-    // PRINT
-    predictionDStream.print()
 
     // Handle predictions.
     val maintenanceDStream = predictionDStream.updateStateByKey[MaintenanceScheduler]((predictions:Seq[MotorPrediction], maintenanceScheduler:Option[MaintenanceScheduler]) => {
@@ -195,7 +181,7 @@ object IIoTDemoStreaming {
     })
 
     // PRINT
-    maintenanceDStream.print()
+    //maintenanceDStream.print()
 
     ssc.checkpoint("/tmp/checkpoint")
     ssc.start()

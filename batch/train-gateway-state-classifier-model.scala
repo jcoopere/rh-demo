@@ -38,9 +38,6 @@ val formula = new RFormula().setFormula("label ~ .").setLabelCol("label").setFea
 // Label indexer
 val labelIndexer = new StringIndexer().setInputCol("label").setOutputCol("indexedLabel").fit(points)
 
-// Feature indexer
-//val featureIndexer = new VectorIndexer().setInputCol("features").setOutputCol("indexedFeatures").setMaxCategories(3).fit(points)
-
 // Random Forest Classifier
 val rf = new RandomForestClassifier().setLabelCol("indexedLabel").setFeaturesCol("features").setNumTrees(10)
 

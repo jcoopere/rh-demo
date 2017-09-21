@@ -4,9 +4,7 @@ import org.apache.spark.mllib.tree.RandomForest
 import org.apache.spark.mllib.tree.model.RandomForestModel
 import org.apache.spark.mllib.util.MLUtils
 
-// Load training data in LIBSVM format.
-//val data = MLUtils.loadLibSVMFile(sc, "/training-data")
-
+// Load labeled training data.
 val data = sc.textFile("/training-data/")
 
 val points = data.map(line => {
@@ -46,5 +44,3 @@ println("Test Success = " + testSucc)
 */
 
 model.save(sc, "/model/state-classifier-model")
-
-:quit
