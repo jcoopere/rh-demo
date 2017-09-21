@@ -1,10 +1,8 @@
 ## Streaming job
 Spark Streaming job for parsing, denormalizing, and storing Kura protobuf metrics in Kudu, as well as analyzing metrics and generating alerts when machine is identified as being in a bad state.
 
-##Usage
-
-Build with:
+## Sample Usage
+### Build
 `$ sbt clean assembly`
-
-Submit with following args:
-`<kafka-broker-list e.g. broker-1:9092,broker-2:9092> <kudu-master e.g. kudu-master-1:7051,kudu-master-2:7051 <mqtt-broker> <mqtt-user-name> <mqtt-password>`
+### Deploy
+`$ spark-submit --master yarn --deploy-mode client --class com.cloudera.demo.iiot.IIoTDemoStreaming target/scala-2.10/iiot-demo-assembly-1.0.jar <kafka-broker-list e.g. broker-1:9092,broker-2:9092> <kudu-master e.g. kudu-master-1:7051,kudu-master-2:7051 <mqtt-broker> <mqtt-user-name> <mqtt-password>`
