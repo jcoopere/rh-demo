@@ -47,17 +47,16 @@ object IIoTDemoStreaming {
 
     // Usage
     if (args.length == 0) {
-      println("Args: <zk e.g. zookeeper-1:2181> <kafka-broker-list e.g. broker-1:9092,broker-2:9092> <kudu-master e.g. kudu-master-1:7051,kudu-master-2:7051 <mqtt-broker> <mqtt-user-name> <mqtt-password>")
+      println("Args: <kafka-broker-list e.g. broker-1:9092,broker-2:9092> <kudu-master e.g. kudu-master-1:7051,kudu-master-2:7051 <mqtt-broker> <mqtt-user-name> <mqtt-password>")
       return
     }
 
     // Args
-    val zk = args(0)
-    val kafkaBrokerList = args(1)
-    val kuduMasterList = args(2)
-    val mqttBroker = args(3)
-    val mqttUserName = args(4)
-    val mqttPassword = args(5)
+    val kafkaBrokerList = args(0)
+    val kuduMasterList = args(1)
+    val mqttBroker = args(2)
+    val mqttUserName = args(3)
+    val mqttPassword = args(4)
 
     // Hardcoded params
     val kafkaTopicIn = "ingest"
