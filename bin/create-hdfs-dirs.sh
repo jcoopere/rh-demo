@@ -17,15 +17,15 @@ if [[ $# -ne 0 ]]; then
 fi
 
 
-## Create HDFS dirs for training data and model output.
-sudo -u hdfs hadoop fs -mkdir /iiot-demo
-sudo -u hdfs hadoop fs -mkdir /iiot-demo/training-data
-sudo -u hdfs hadoop fs -mkdir /iiot-demo/training-data/machine-state-classifier-data
-sudo -u hdfs hadoop fs -mkdir /iiot-demo/training-data/ttf-regression-data
-sudo -u hdfs hadoop fs -mkdir /iiot-demo/model
+## Create HDFS dir for model output.
+sudo -u hdfs hadoop fs -mkdir /model
 
-## Open permissions for all demo dirs.
-sudo -u hdfs hadoop fs -chmod -R 777 /iiot-demo
+## Open permissions for model dir.
+sudo -u hdfs hadoop fs -chmod -R 777 /model
+
+## Add training data to HDFS.
+sudo -u hdfs hadoop fs -put training-data /training-data
+sudo -u hdfs hadoop fs -chmod -R 777 /training-data
 
 
 

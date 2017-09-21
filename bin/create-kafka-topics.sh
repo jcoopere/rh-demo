@@ -24,9 +24,6 @@ zk=$1
 # Data ingest topic (inbound from Kapua)
 kafka-topics --zookeeper $zk --create --topic ingest --partitions 1 --replication-factor 1
 
-# Events topic (outbound from Spark Streaming)
-kafka-topics --zookeeper $zk --create --topic event --partitions 1 --replication-factor 1
-
 # Model topic (outbound from Spark model training)
 kafka-topics --zookeeper $zk --create --topic model --partitions 1 --replication-factor 1
 
