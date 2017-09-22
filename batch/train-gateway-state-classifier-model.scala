@@ -1,6 +1,6 @@
-// Usage: spark-shell -i train-gateway-state-classifier.scala --jars jpmml-sparkml-package/target/jpmml-sparkml-package-1.0-SNAPSHOT.jar --packages "org.apache.kafka:kafka-clients:0.10.0.0,com.typesafe:config:1.2.1"
+// Usage: spark-shell -i train-gateway-state-classifier-model.scala --jars "jpmml-sparkml-package/target/jpmml-sparkml-package-1.0-SNAPSHOT.jar" --packages "org.apache.kafka:kafka-clients:0.10.0.0,com.typesafe:config:1.2.1"
 
-import com.typesafe.{Config, ConfigFactory}
+import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
 import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.classification.{RandomForestClassificationModel, RandomForestClassifier}
