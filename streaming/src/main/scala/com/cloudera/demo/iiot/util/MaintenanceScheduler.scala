@@ -36,7 +36,7 @@ class MaintenanceScheduler(mqttBroker:String, mqttUserName:String, mqttPassword:
 
 	// Simulate evaluating the machine state against schedule and other considerations.
 	// Here, all we do is see if the motor is in a bad state and schedule an event if we haven't already.
-	// If we schedule new maintenance, send a message containing information about it over the "event" Kafka topic.
+	// If we schedule new maintenance, send a message containing information about it over the alerts MQTT topic.
 	// If the motor is in a good state, reset.
 	def evaluate(motorId:String, state:Double, ttf:Double) = {
 		state match {
