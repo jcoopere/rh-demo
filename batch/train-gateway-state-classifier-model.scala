@@ -1,5 +1,6 @@
-// Usage: spark-shell -i train-gateway-state-classifier.scala --jars jpmml-sparkml-package/target/jpmml-sparkml-package-1.0-SNAPSHOT.jar --packages "org.apache.kafka:kafka-clients:0.10.0.0"
+// Usage: spark-shell -i train-gateway-state-classifier.scala --jars jpmml-sparkml-package/target/jpmml-sparkml-package-1.0-SNAPSHOT.jar --packages "org.apache.kafka:kafka-clients:0.10.0.0,com.typesafe:config:1.2.1"
 
+import com.typesafe.{Config, ConfigFactory}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
 import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.classification.{RandomForestClassificationModel, RandomForestClassifier}
@@ -12,13 +13,15 @@ import java.util.Properties
 
 case class LabeledTelemetry(label:Double, rpm:Double, voltage:Double, current:Double, temp:Double, db:Double, vibration:Double)
 
-// Params
-val sendKafka:Boolean = false
-val persistPMML:Boolean = false
-val printPMML:Boolean = true
+val config = ConfigFactory.parseFile(new File("model-training.conf"))
+
+// Fetch configs.
+val sendKafka = config.getBoolean("publish_pmml_to_kafka")
+val printPMML = config.getBoolean("print_pmml")
+val kafkaBrokerList = config.getString("kafka_broker_list")
+
+// Hardcoded params.
 val trainingDataDir = "/training-data/"
-val modelSavePath = "/model/gateway-state-classifier-model"
-val kafkaBrokerList = "ip-10-0-26-113.us-west-2.compute.internal:9092"
 val kafkaTopic = "model"
 
 val sqc = new SQLContext(sc)
@@ -54,14 +57,6 @@ if (model != null) {
 
 	if (printPMML) {
 		println(new String(pmmlBytes, "UTF-8"))
-	}
-
-	// Save to file
-	if (persistPMML) {
-		val file = new File(modelSavePath)
-		val bw = new BufferedWriter(new FileWriter(file))
-		bw.write(new String(pmmlBytes, "UTF-8"))
-		bw.close()
 	}
 
 	// Send to Kafka
